@@ -69,7 +69,7 @@ relevantReference(UA_Server *server, UA_Boolean includeSubtypes,
         return UA_NodeId_equal(rootRef, testRef);
 
     const UA_NodeId hasSubType = UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE);
-    return isNodeInTree(&server->config.nodestore, testRef, rootRef, &hasSubType, 1);
+    return isNodeInTree(&server->config.nodestore, testRef, rootRef, &hasSubType, 1, UA_FALSE);
 }
 
 static UA_Boolean

@@ -148,7 +148,7 @@ callWithMethodAndObject(UA_Server *server, UA_Session *session,
         if(rk->isInverse)
             continue;
         if(!isNodeInTree(&server->config.nodestore, &rk->referenceTypeId,
-                         &hasComponentNodeId, &hasSubTypeNodeId, 1))
+                         &hasComponentNodeId, &hasSubTypeNodeId, 1, UA_FALSE))
             continue;
         for(size_t j = 0; j < rk->targetIdsSize; ++j) {
             if(UA_NodeId_equal(&rk->targetIds[j].nodeId, &request->methodId)) {

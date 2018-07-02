@@ -53,7 +53,7 @@ UA_Server_createEvent(UA_Server *server, const UA_NodeId eventType, UA_NodeId *o
     /* Make sure the eventType is a subtype of BaseEventType */
     UA_NodeId hasSubtypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE);
     UA_NodeId baseEventTypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_BASEEVENTTYPE);
-    if(!isNodeInTree(&server->config.nodestore, &eventType, &baseEventTypeId, &hasSubtypeId, 1)) {
+    if(!isNodeInTree(&server->config.nodestore, &eventType, &baseEventTypeId, &hasSubtypeId, 1, UA_FALSE)) {
         UA_LOG_ERROR(server->config.logger, UA_LOGCATEGORY_USERLAND,
                      "Event type must be a subtype of BaseEventType!");
         return UA_STATUSCODE_BADINVALIDARGUMENT;
@@ -119,7 +119,7 @@ isValidEvent(UA_Server *server, const UA_NodeId *validEventParent, const UA_Node
     }
     UA_NodeId hasSubtypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE);
     UA_Boolean tmp = isNodeInTree(&server->config.nodestore, &bpr.targets[0].targetId.nodeId,
-                                  validEventParent, &hasSubtypeId, 1);
+                                  validEventParent, &hasSubtypeId, 1, UA_FALSE);
     UA_BrowsePathResult_deleteMembers(&bpr);
     return tmp;
 }
@@ -316,7 +316,7 @@ getParentsNodeIteratorCallback(UA_NodeId parentId, UA_Boolean isInverse,
 
     /* Is this a hierarchical reference? */
     if(!isNodeInTree(&handle->server->config.nodestore, &referenceTypeId,
-                     &hierarchicalReferences, &subtypeId, 1))
+                     &hierarchicalReferences, &subtypeId, 1, UA_FALSE))
         return UA_STATUSCODE_GOOD;
 
     Events_nodeListElement *entry = (Events_nodeListElement *) UA_malloc(sizeof(Events_nodeListElement));
@@ -373,7 +373,7 @@ UA_StatusCode
 UA_Server_triggerEvent(UA_Server *server, const UA_NodeId eventNodeId, const UA_NodeId origin,
                        UA_ByteString *outEventId, const UA_Boolean deleteEventNode) {
     /* Make sure the origin is in the ObjectsFolder (TODO: or in the ViewsFolder) */
-    if(!isNodeInTree(&server->config.nodestore, &origin, &objectsFolderId, parentReferences_events, 2)) {
+    if(!isNodeInTree(&server->config.nodestore, &origin, &objectsFolderId, parentReferences_events, 2, UA_TRUE)) {
         UA_LOG_ERROR(server->config.logger, UA_LOGCATEGORY_USERLAND,
                      "Node for event must be in ObjectsFolder!");
         return UA_STATUSCODE_BADINVALIDARGUMENT;

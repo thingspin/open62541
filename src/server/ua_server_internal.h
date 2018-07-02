@@ -251,7 +251,7 @@ UA_Node_hasSubTypeOrInstances(const UA_Node *node);
 UA_Boolean
 isNodeInTree(UA_Nodestore *ns, const UA_NodeId *leafNode,
              const UA_NodeId *nodeToFind, const UA_NodeId *referenceTypeIds,
-             size_t referenceTypeIdsSize);
+             size_t referenceTypeIdsSize, UA_Boolean includeDerivedReferences);
 
 /* Returns an array with the hierarchy of type nodes. The returned array starts
  * at the leaf and continues "upwards" in the hierarchy based on the

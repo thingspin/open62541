@@ -592,12 +592,12 @@ compatibleDataType(UA_Server *server, const UA_NodeId *dataType,
         return true;
 
     /* Is the value-type a subtype of the required type? */
-    if(isNodeInTree(&server->config.nodestore, dataType, constraintDataType, &subtypeId, 1))
+    if(isNodeInTree(&server->config.nodestore, dataType, constraintDataType, &subtypeId, 1, UA_FALSE))
         return true;
 
     /* Enum allows Int32 (only) */
     if(UA_NodeId_equal(dataType, &UA_TYPES[UA_TYPES_INT32].typeId) &&
-       isNodeInTree(&server->config.nodestore, constraintDataType, &enumNodeId, &subtypeId, 1))
+       isNodeInTree(&server->config.nodestore, constraintDataType, &enumNodeId, &subtypeId, 1, UA_FALSE))
         return true;
 
     /* More checks for the data type of real values (variants) */
@@ -610,7 +610,7 @@ compatibleDataType(UA_Server *server, const UA_NodeId *dataType,
            dataType->identifierType == UA_NODEIDTYPE_NUMERIC &&
            dataType->identifier.numeric <= 25 &&
            isNodeInTree(&server->config.nodestore, constraintDataType,
-                        dataType, &subtypeId, 1))
+                        dataType, &subtypeId, 1, UA_FALSE))
             return true;
     }
 
@@ -730,24 +730,8 @@ compatibleValue(UA_Server *server, const UA_NodeId *targetDataTypeId,
                 const UA_NumericRange *range) {
     /* Empty value */
     if(!value->type) {
-        /* Empty value is allowed for BaseDataType */
-        if(UA_NodeId_equal(targetDataTypeId, &UA_TYPES[UA_TYPES_VARIANT].typeId) ||
-           UA_NodeId_equal(targetDataTypeId, &UA_NODEID_NULL))
-            return true;
-
-        /* Workaround: Allow empty value if the target data type is abstract */
-        const UA_Node *datatype = UA_Nodestore_get(server, targetDataTypeId);
-        if(datatype && datatype->nodeClass == UA_NODECLASS_DATATYPE) {
-            UA_Boolean isAbstract = ((const UA_DataTypeNode*)datatype)->isAbstract;
-            UA_Nodestore_release(server, datatype);
-            if(isAbstract)
-                return true;
-        }
-
-        UA_LOG_INFO(server->config.logger, UA_LOGCATEGORY_SERVER,
-                    "Only Variables with data type BaseDataType may contain "
-                    "a null (empty) value");
-        return false;
+        /* Empty value is allowed */
+        return true;
     }
 
     /* Has the value a subtype of the required type? BaseDataType (Variant) can

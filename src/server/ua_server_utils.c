@@ -28,7 +28,7 @@ struct ref_history {
 static UA_Boolean
 isNodeInTreeNoCircular(UA_Nodestore *ns, const UA_NodeId *leafNode, const UA_NodeId *nodeToFind,
                        struct ref_history *visitedRefs, const UA_NodeId *referenceTypeIds,
-                       size_t referenceTypeIdsSize) {
+                       size_t referenceTypeIdsSize, UA_Boolean includeDerivedReferences) {
     if(UA_NodeId_equal(nodeToFind, leafNode))
         return true;
 
@@ -49,6 +49,14 @@ isNodeInTreeNoCircular(UA_Nodestore *ns, const UA_NodeId *leafNode, const UA_Nod
         UA_Boolean match = false;
         for(size_t j = 0; j < referenceTypeIdsSize; ++j) {
             if(UA_NodeId_equal(&refs->referenceTypeId, &referenceTypeIds[j])) {
+                match = true;
+                break;
+            }
+
+            /* Check for subtypes of the given reference types */
+            UA_NodeId hasSubTypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE);
+            if (includeDerivedReferences && isNodeInTree(ns, &refs->referenceTypeId,
+                                                         &referenceTypeIds[j], &hasSubTypeId, 1, UA_FALSE)) {
                 match = true;
                 break;
             }
@@ -81,7 +89,7 @@ isNodeInTreeNoCircular(UA_Nodestore *ns, const UA_NodeId *leafNode, const UA_Nod
             /* Recurse */
             UA_Boolean foundRecursive =
                 isNodeInTreeNoCircular(ns, &refs->targetIds[j].nodeId, nodeToFind, &nextVisitedRefs,
-                                       referenceTypeIds, referenceTypeIdsSize);
+                                       referenceTypeIds, referenceTypeIdsSize, includeDerivedReferences);
             if(foundRecursive) {
                 ns->releaseNode(ns->context, node);
                 return true;
@@ -95,9 +103,9 @@ isNodeInTreeNoCircular(UA_Nodestore *ns, const UA_NodeId *leafNode, const UA_Nod
 
 UA_Boolean
 isNodeInTree(UA_Nodestore *ns, const UA_NodeId *leafNode, const UA_NodeId *nodeToFind,
-             const UA_NodeId *referenceTypeIds, size_t referenceTypeIdsSize) {
+             const UA_NodeId *referenceTypeIds, size_t referenceTypeIdsSize, UA_Boolean includeDerivedReferences) {
     struct ref_history visitedRefs = {NULL, leafNode, 0};
-    return isNodeInTreeNoCircular(ns, leafNode, nodeToFind, &visitedRefs, referenceTypeIds, referenceTypeIdsSize);
+    return isNodeInTreeNoCircular(ns, leafNode, nodeToFind, &visitedRefs, referenceTypeIds, referenceTypeIdsSize, includeDerivedReferences);
 }
 
 const UA_Node *
