@@ -7,11 +7,8 @@
  *
  * This tutorial shows how to work with data types and how to add variable nodes
  * to a server. First, we add a new variable to the server. Take a look at the
- * definition of the ``UA_VariableAttributes`` structure to see the list of all
+ * definition of the ``UA_VariableAttrbitues`` structure to see the list of all
  * attributes defined for VariableNodes.
- *
- * Note that the default settings have the AccessLevel of the variable value as
- * read only. See below for making the variable writable.
  */
 
 #include <signal.h>
@@ -21,13 +18,13 @@
 static void
 addVariable(UA_Server *server) {
     /* Define the attribute of the myInteger variable node */
-    UA_VariableAttributes attr = UA_VariableAttributes_default;
+    UA_VariableAttributes attr;
+    UA_VariableAttributes_init(&attr);
     UA_Int32 myInteger = 42;
     UA_Variant_setScalar(&attr.value, &myInteger, &UA_TYPES[UA_TYPES_INT32]);
-    attr.description = UA_LOCALIZEDTEXT("en-US","the answer");
-    attr.displayName = UA_LOCALIZEDTEXT("en-US","the answer");
+    attr.description = UA_LOCALIZEDTEXT("en_US","the answer");
+    attr.displayName = UA_LOCALIZEDTEXT("en_US","the answer");
     attr.dataType = UA_TYPES[UA_TYPES_INT32].typeId;
-    attr.accessLevel = UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE;
 
     /* Add the variable node to the information model */
     UA_NodeId myIntegerNodeId = UA_NODEID_STRING(1, "the.answer");
@@ -36,7 +33,7 @@ addVariable(UA_Server *server) {
     UA_NodeId parentReferenceNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES);
     UA_Server_addVariableNode(server, myIntegerNodeId, parentNodeId,
                               parentReferenceNodeId, myIntegerName,
-                              UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE), attr, NULL, NULL);
+                              UA_NODEID_NULL, attr, NULL, NULL);
 }
 
 /**
@@ -106,15 +103,19 @@ int main(void) {
     signal(SIGINT, stopHandler);
     signal(SIGTERM, stopHandler);
 
-    UA_ServerConfig *config = UA_ServerConfig_new_default();
+    UA_ServerConfig config = UA_ServerConfig_standard;
+    UA_ServerNetworkLayer nl =
+        UA_ServerNetworkLayerTCP(UA_ConnectionConfig_standard, 16664);
+    config.networkLayers = &nl;
+    config.networkLayersSize = 1;
     UA_Server *server = UA_Server_new(config);
 
     addVariable(server);
     writeVariable(server);
     writeWrongVariable(server);
 
-    UA_StatusCode retval = UA_Server_run(server, &running);
+    UA_Server_run(server, &running);
     UA_Server_delete(server);
-    UA_ServerConfig_delete(config);
-    return (int)retval;
+    nl.deleteMembers(&nl);
+    return 0;
 }

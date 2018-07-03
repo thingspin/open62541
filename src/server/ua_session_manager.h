@@ -1,22 +1,11 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. 
- *
- *    Copyright 2014-2017 (c) Fraunhofer IOSB (Author: Julius Pfrommer)
- *    Copyright 2014, 2017 (c) Florian Palm
- *    Copyright 2015 (c) Sten Grüner
- *    Copyright 2015 (c) Oleksiy Vasylyev
- *    Copyright 2017 (c) Stefan Profanter, fortiss GmbH
- */
+*  License, v. 2.0. If a copy of the MPL was not distributed with this 
+*  file, You can obtain one at http://mozilla.org/MPL/2.0/.*/
 
 #ifndef UA_SESSION_MANAGER_H_
 #define UA_SESSION_MANAGER_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include "../../deps/queue.h"
+#include "queue.h"
 #include "ua_server.h"
 #include "ua_util.h"
 #include "ua_session.h"
@@ -52,13 +41,6 @@ UA_StatusCode
 UA_SessionManager_removeSession(UA_SessionManager *sm, const UA_NodeId *token);
 
 UA_Session *
-UA_SessionManager_getSessionByToken(UA_SessionManager *sm, const UA_NodeId *token);
-
-UA_Session *
-UA_SessionManager_getSessionById(UA_SessionManager *sm, const UA_NodeId *sessionId);
-
-#ifdef __cplusplus
-} // extern "C"
-#endif
+UA_SessionManager_getSession(UA_SessionManager *sm, const UA_NodeId *token);
 
 #endif /* UA_SESSION_MANAGER_H_ */

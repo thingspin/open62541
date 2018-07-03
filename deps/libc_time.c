@@ -1,7 +1,8 @@
-/* Originally released by the musl project (http://www.musl-libc.org/) under the
- * MIT license. Taken from the file /src/time/__secs_to_tm.c */
+/*
+ * Originally released by the musl project (http://www.musl-libc.org/) under the
+ * MIT license. Taken from the file /src/time/__secs_to_tm.c
+ */
 
-#include <limits.h>
 #include "libc_time.h"
 
 /* 2000-03-01 (mod 400 year, immediately after feb29 */
@@ -11,7 +12,8 @@
 #define DAYS_PER_100Y (365*100 + 24)
 #define DAYS_PER_4Y   (365*4   + 1)
 
-int __secs_to_tm(long long t, struct mytm *tm) {
+int __secs_to_tm(long long t, struct tm *tm)
+{
     long long days, secs, years;
     int remdays, remsecs, remyears;
     int qc_cycles, c_cycles, q_cycles;

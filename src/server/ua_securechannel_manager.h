@@ -1,32 +1,22 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. 
- *
- *    Copyright 2014-2017 (c) Fraunhofer IOSB (Author: Julius Pfrommer)
- *    Copyright 2014, 2017 (c) Florian Palm
- *    Copyright 2015 (c) Oleksiy Vasylyev
- *    Copyright 2017 (c) Stefan Profanter, fortiss GmbH
- */
+*  License, v. 2.0. If a copy of the MPL was not distributed with this 
+*  file, You can obtain one at http://mozilla.org/MPL/2.0/.*/
 
 #ifndef UA_CHANNEL_MANAGER_H_
 #define UA_CHANNEL_MANAGER_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "ua_util.h"
 #include "ua_server.h"
 #include "ua_securechannel.h"
-#include "../../deps/queue.h"
+#include "queue.h"
 
-typedef struct channel_entry {
+typedef struct channel_list_entry {
     UA_SecureChannel channel;
-    TAILQ_ENTRY(channel_entry) pointers;
-} channel_entry;
+    LIST_ENTRY(channel_list_entry) pointers;
+} channel_list_entry;
 
-typedef struct {
-    TAILQ_HEAD(, channel_entry) channels; // doubly-linked list of channels
+typedef struct UA_SecureChannelManager {
+    LIST_HEAD(channel_list, channel_list_entry) channels; // doubly-linked list of channels
     UA_UInt32 currentChannelCount;
     UA_UInt32 lastChannelId;
     UA_UInt32 lastTokenId;
@@ -47,17 +37,12 @@ UA_SecureChannelManager_cleanupTimedOut(UA_SecureChannelManager *cm,
                                         UA_DateTime nowMonotonic);
 
 UA_StatusCode
-UA_SecureChannelManager_create(UA_SecureChannelManager *const cm, UA_Connection *const connection,
-                               const UA_SecurityPolicy *const securityPolicy,
-                               const UA_AsymmetricAlgorithmSecurityHeader *const asymHeader);
-
-UA_StatusCode
-UA_SecureChannelManager_open(UA_SecureChannelManager *cm, UA_SecureChannel *channel,
+UA_SecureChannelManager_open(UA_SecureChannelManager *cm, UA_Connection *conn,
                              const UA_OpenSecureChannelRequest *request,
                              UA_OpenSecureChannelResponse *response);
 
 UA_StatusCode
-UA_SecureChannelManager_renew(UA_SecureChannelManager *cm, UA_SecureChannel *channel,
+UA_SecureChannelManager_renew(UA_SecureChannelManager *cm, UA_Connection *conn,
                               const UA_OpenSecureChannelRequest *request,
                               UA_OpenSecureChannelResponse *response);
 
@@ -66,9 +51,5 @@ UA_SecureChannelManager_get(UA_SecureChannelManager *cm, UA_UInt32 channelId);
 
 UA_StatusCode
 UA_SecureChannelManager_close(UA_SecureChannelManager *cm, UA_UInt32 channelId);
-
-#ifdef __cplusplus
-} // extern "C"
-#endif
 
 #endif /* UA_CHANNEL_MANAGER_H_ */

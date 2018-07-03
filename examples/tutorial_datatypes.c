@@ -47,21 +47,21 @@ variables_basic(void) {
     UA_String_deleteMembers(&s4);
     if(!eq)
         return;
-
+    
     /* Structured Type */
-    UA_ReadRequest rr;
-    UA_init(&rr, &UA_TYPES[UA_TYPES_READREQUEST]); /* Generic method */
-    UA_ReadRequest_init(&rr); /* Shorthand for the previous line */
+    UA_CallRequest cr;
+    UA_init(&cr, &UA_TYPES[UA_TYPES_CALLREQUEST]); /* Generic method */
+    UA_CallRequest_init(&cr); /* Shorthand for the previous line */
 
-    rr.requestHeader.timestamp = UA_DateTime_now(); /* Members of a structure */
+    cr.requestHeader.timestamp = UA_DateTime_now(); /* Members of a structure */
 
-    rr.nodesToRead = (UA_ReadValueId *)UA_Array_new(5, &UA_TYPES[UA_TYPES_READVALUEID]);
-    rr.nodesToReadSize = 5; /* Array size needs to be made known */
+    cr.methodsToCall = UA_Array_new(5, &UA_TYPES[UA_TYPES_CALLMETHODREQUEST]);
+    cr.methodsToCallSize = 5; /* Array size needs to be made known */
 
-    UA_ReadRequest *rr2 = UA_ReadRequest_new();
-    UA_copy(&rr, rr2, &UA_TYPES[UA_TYPES_READREQUEST]);
-    UA_ReadRequest_deleteMembers(&rr);
-    UA_ReadRequest_delete(rr2);
+    UA_CallRequest *cr2 = UA_CallRequest_new();
+    UA_copy(&cr, cr2, &UA_TYPES[UA_TYPES_CALLREQUEST]);
+    UA_CallRequest_deleteMembers(&cr);
+    UA_CallRequest_delete(cr2);
 }
 
 /**
@@ -120,7 +120,7 @@ variables_variants(void) {
     UA_Variant_setArrayCopy(&v3, d, 9, &UA_TYPES[UA_TYPES_DOUBLE]);
 
     /* Set array dimensions */
-    v3.arrayDimensions = (UA_UInt32 *)UA_Array_new(2, &UA_TYPES[UA_TYPES_UINT32]);
+    v3.arrayDimensions = UA_Array_new(2, &UA_TYPES[UA_TYPES_UINT32]);
     v3.arrayDimensionsSize = 2;
     v3.arrayDimensions[0] = 3;
     v3.arrayDimensions[1] = 3;

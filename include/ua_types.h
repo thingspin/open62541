@@ -1,17 +1,6 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. 
- *
- *    Copyright 2014 (c) Leon Urbas
- *    Copyright 2014, 2016-2017 (c) Florian Palm
- *    Copyright 2014-2017 (c) Fraunhofer IOSB (Author: Julius Pfrommer)
- *    Copyright 2015-2016 (c) Sten Grüner
- *    Copyright 2015-2016 (c) Chris Iatrou
- *    Copyright 2015 (c) Nick Goossens
- *    Copyright 2015-2016 (c) Oleksiy Vasylyev
- *    Copyright 2017 (c) Stefan Profanter, fortiss GmbH
- *    Copyright 2017 (c) Thomas Stalder, Blue Time Concept SA
- */
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.*/
 
 #ifndef UA_TYPES_H_
 #define UA_TYPES_H_
@@ -22,9 +11,6 @@ extern "C" {
 
 #include "ua_config.h"
 #include "ua_constants.h"
-#include "ua_statuscodes.h"
-
-#define UA_BUILTIN_TYPES_COUNT 25U
 
 /**
  * .. _types:
@@ -34,7 +20,7 @@ extern "C" {
  *
  * The OPC UA protocol defines 25 builtin data types and three ways of combining
  * them into higher-order types: arrays, structures and unions. In open62541,
- * only the builtin data types are defined manually. All other data types are
+ * the builtin data types are defined manually. All other data types are
  * generated from standard XML definitions. Their exact definitions can be
  * looked up at https://opcfoundation.org/UA/schemas/Opc.Ua.Types.bsd.xml.
  *
@@ -43,8 +29,11 @@ extern "C" {
  * implementation details.
  *
  * Builtin Types
- * -------------
- *
+ * ------------- */
+
+#define UA_BUILTIN_TYPES_COUNT 25U
+
+/**
  * Boolean
  * ^^^^^^^
  * A two-state logical value (true or false). */
@@ -139,13 +128,26 @@ typedef double UA_Double;
  * specific code. */
 typedef uint32_t UA_StatusCode;
 
-/* Returns the human-readable name of the StatusCode. If no matching StatusCode
- * is found, a default string for "Unknown" is returned. This feature might be
- * disabled to create a smaller binary with the
- * UA_ENABLE_STATUSCODE_DESCRIPTIONS build-flag. Then the function returns an
- * empty string for every StatusCode. */
-UA_EXPORT const char *
-UA_StatusCode_name(UA_StatusCode code);
+typedef struct {
+    UA_StatusCode code;      /* The numeric value of the StatusCode */
+    const char* name;        /* The symbolic name */
+    const char* explanation; /* Short message explaining the StatusCode */
+} UA_StatusCodeDescription;
+
+/* Returns the description of the StatusCode. Never returns NULL, but a generic
+ * description for invalid StatusCodes instead. */
+UA_EXPORT const UA_StatusCodeDescription *
+UA_StatusCode_description(UA_StatusCode code);
+
+static UA_INLINE const char *
+UA_StatusCode_name(UA_StatusCode code) {
+    return UA_StatusCode_description(code)->name;
+}
+
+static UA_INLINE const char *
+UA_StatusCode_explanation(UA_StatusCode code) {
+    return UA_StatusCode_description(code)->explanation;
+}
 
 /**
  * String
@@ -164,7 +166,7 @@ UA_Boolean UA_EXPORT UA_String_equal(const UA_String *s1, const UA_String *s2);
 UA_EXPORT extern const UA_String UA_STRING_NULL;
 
 /**
- * ``UA_STRING`` returns a string pointing to the original char-array.
+ * ``UA_STRING`` returns a string pointing to the preallocated char-array.
  * ``UA_STRING_ALLOC`` is shorthand for ``UA_String_fromChars`` and makes a copy
  * of the char-array. */
 static UA_INLINE UA_String
@@ -175,9 +177,6 @@ UA_STRING(char *chars) {
 
 #define UA_STRING_ALLOC(CHARS) UA_String_fromChars(CHARS)
 
-/* Define strings at compile time (in ROM) */
-#define UA_STRING_STATIC(CHARS) {sizeof(CHARS)-1, (UA_Byte*)CHARS}
-
 /**
  * .. _datetime:
  *
@@ -185,29 +184,24 @@ UA_STRING(char *chars) {
  * ^^^^^^^^
  * An instance in time. A DateTime value is encoded as a 64-bit signed integer
  * which represents the number of 100 nanosecond intervals since January 1, 1601
- * (UTC).
- *
- * The methods providing an interface to the system clock are provided by a
- * "plugin" that is statically linked with the library. */
-
+ * (UTC). */
 typedef int64_t UA_DateTime;
 
-/* Multiples to convert durations to DateTime */
-#define UA_DATETIME_USEC 10LL
-#define UA_DATETIME_MSEC (UA_DATETIME_USEC * 1000LL)
-#define UA_DATETIME_SEC (UA_DATETIME_MSEC * 1000LL)
+/* Multiply to convert units for time difference computations */
+#define UA_USEC_TO_DATETIME 10LL
+#define UA_MSEC_TO_DATETIME (UA_USEC_TO_DATETIME * 1000LL)
+#define UA_SEC_TO_DATETIME (UA_MSEC_TO_DATETIME * 1000LL)
 
-/* The current time in UTC time */
+/* Datetime of 1 Jan 1970 00:00 UTC */
+#define UA_DATETIME_UNIX_EPOCH (11644473600LL * UA_SEC_TO_DATETIME)
+
+/* The current time */
 UA_DateTime UA_EXPORT UA_DateTime_now(void);
 
-/* Offset between local time and UTC time */
-UA_Int64 UA_EXPORT UA_DateTime_localTimeUtcOffset(void);
-
-/* CPU clock invariant to system time changes. Use only to measure durations,
- * not absolute time. */
+/* CPU clock invariant to system time changes. Use only for time diffs, not
+ * current time */
 UA_DateTime UA_EXPORT UA_DateTime_nowMonotonic(void);
 
-/* Represents a Datetime as a structure */
 typedef struct UA_DateTimeStruct {
     UA_UInt16 nanoSec;
     UA_UInt16 microSec;
@@ -222,23 +216,7 @@ typedef struct UA_DateTimeStruct {
 
 UA_DateTimeStruct UA_EXPORT UA_DateTime_toStruct(UA_DateTime t);
 
-/* The C99 standard (7.23.1) says: "The range and precision of times
- * representable in clock_t and time_t are implementation-defined." On most
- * systems, time_t is a 4 or 8 byte integer counting seconds since the UTC Unix
- * epoch. The following methods are used for conversion. */
-
-/* Datetime of 1 Jan 1970 00:00 */
-#define UA_DATETIME_UNIX_EPOCH (11644473600LL * UA_DATETIME_SEC)
-
-static UA_INLINE UA_Int64
-UA_DateTime_toUnixTime(UA_DateTime date) {
-    return (date - UA_DATETIME_UNIX_EPOCH) / UA_DATETIME_SEC;
-}
-
-static UA_INLINE UA_DateTime
-UA_DateTime_fromUnixTime(UA_Int64 unixDate) {
-    return (unixDate * UA_DATETIME_SEC) + UA_DATETIME_UNIX_EPOCH;
-}
+UA_String UA_EXPORT UA_DateTime_toString(UA_DateTime t);
 
 /**
  * Guid
@@ -381,11 +359,6 @@ typedef struct {
     UA_UInt32 serverIndex;
 } UA_ExpandedNodeId;
 
-UA_Boolean UA_EXPORT UA_ExpandedNodeId_equal(const UA_ExpandedNodeId *n1,
-                                             const UA_ExpandedNodeId *n2);
-
-UA_EXPORT extern const UA_ExpandedNodeId UA_EXPANDEDNODEID_NULL;
-
 /** The following functions are shorthand for creating ExpandedNodeIds. */
 static UA_INLINE UA_ExpandedNodeId
 UA_EXPANDEDNODEID_NUMERIC(UA_UInt16 nsIndex, UA_UInt32 identifier) {
@@ -451,10 +424,6 @@ UA_QUALIFIEDNAME_ALLOC(UA_UInt16 nsIndex, const char *chars) {
     qn.name = UA_STRING_ALLOC(chars); return qn;
 }
 
-UA_Boolean UA_EXPORT
-UA_QualifiedName_equal(const UA_QualifiedName *qn1,
-                       const UA_QualifiedName *qn2);
-
 /**
  * LocalizedText
  * ^^^^^^^^^^^^^
@@ -496,10 +465,6 @@ typedef struct  {
     size_t dimensionsSize;
     UA_NumericRangeDimension *dimensions;
 } UA_NumericRange;
-
-UA_StatusCode UA_EXPORT
-UA_NumericRange_parseFromString(UA_NumericRange *range, const UA_String *str);
-
 
 /**
  * .. _variant:
@@ -544,7 +509,7 @@ typedef struct UA_DataType UA_DataType;
 typedef enum {
     UA_VARIANT_DATA,          /* The data has the same lifecycle as the
                                  variant */
-    UA_VARIANT_DATA_NODELETE /* The data is "borrowed" by the variant and
+    UA_VARIANT_DATA_NODELETE, /* The data is "borrowed" by the variant and
                                  shall not be deleted at the end of the
                                  variant's lifecycle. */
 } UA_VariantStorageType;
@@ -685,7 +650,7 @@ UA_Variant_setRangeCopy(UA_Variant *v, const void *array,
  *
  * ExtensionObjects may contain scalars of any data type. Even those that are
  * unknown to the receiver. See the section on :ref:`generic-types` on how types
- * are described. If the received data type is unknown, the encoded string and
+ * are described. If the received data type is unkown, the encoded string and
  * target NodeId is stored instead of the decoded value. */
 typedef enum {
     UA_EXTENSIONOBJECT_ENCODED_NOBODY     = 0,
@@ -778,7 +743,8 @@ typedef struct UA_DiagnosticInfo {
  *   memory for the data type itself.
  *
  * Specializations, such as ``UA_Int32_new()`` are derived from the generic
- * type operations as static inline functions. */
+ * type operations as static inline functions.
+ */
 
 typedef struct {
 #ifdef UA_ENABLE_TYPENAMES
@@ -788,7 +754,7 @@ typedef struct {
                                      types */
     UA_Byte   padding;            /* How much padding is there before this
                                      member element? For arrays this is the
-                                     padding before the size_t length member.
+                                     padding before the size_t lenght member.
                                      (No padding between size_t and the
                                      following ptr.) */
     UA_Boolean namespaceZero : 1; /* The type of the member is defined in
@@ -809,8 +775,8 @@ struct UA_DataType {
     UA_Byte    membersSize;      /* How many members does the type have? */
     UA_Boolean builtin      : 1; /* The type is "builtin" and has dedicated de-
                                     and encoding functions */
-    UA_Boolean pointerFree  : 1; /* The type (and its members) contains no
-                                    pointers that need to be freed */
+    UA_Boolean fixedSize    : 1; /* The type (and its members) contains no
+                                    pointers */
     UA_Boolean overlayable  : 1; /* The type has the identical memory layout in
                                     memory and on the binary stream. */
     UA_UInt16  binaryEncodingId; /* NodeId of datatype when encoded as binary */
@@ -818,21 +784,10 @@ struct UA_DataType {
     UA_DataTypeMember *members;
 };
 
-UA_Boolean isDataTypeNumeric(const UA_DataType *type);
-
-/* The following is used to exclude type names in the definition of UA_DataType
- * structures if the feature is disabled. */
-#ifdef UA_ENABLE_TYPENAMES
-# define UA_TYPENAME(name) name,
-#else
-# define UA_TYPENAME(name)
-#endif
-
 /**
  * Builtin data types can be accessed as UA_TYPES[UA_TYPES_XXX], where XXX is
  * the name of the data type. If only the NodeId of a type is known, use the
  * following method to retrieve the data type description. */
-
 /* Returns the data type description for the type's identifier or NULL if no
  * matching data type was found. */
 const UA_DataType UA_EXPORT *
@@ -941,7 +896,6 @@ UA_Guid UA_EXPORT UA_Guid_random(void);     /* no cryptographic entropy */
  * .. toctree::
  *
  *    types_generated */
-
 #ifdef __cplusplus
 } // extern "C"
 #endif

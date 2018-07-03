@@ -25,20 +25,21 @@ static UA_NodeId pointTypeId;
 
 static void
 addVariableType2DPoint(UA_Server *server) {
-    UA_VariableTypeAttributes vtAttr = UA_VariableTypeAttributes_default;
+    UA_VariableTypeAttributes vtAttr;
+    UA_VariableTypeAttributes_init(&vtAttr);
     vtAttr.dataType = UA_TYPES[UA_TYPES_DOUBLE].typeId;
     vtAttr.valueRank = 1; /* array with one dimension */
     UA_UInt32 arrayDims[1] = {2};
     vtAttr.arrayDimensions = arrayDims;
     vtAttr.arrayDimensionsSize = 1;
-    vtAttr.displayName = UA_LOCALIZEDTEXT("en-US", "2DPoint Type");
+    vtAttr.displayName = UA_LOCALIZEDTEXT("en_US", "2DPoint Type");
 
     /* a matching default value is required */
     UA_Double zero[2] = {0.0, 0.0};
     UA_Variant_setArray(&vtAttr.value, zero, 2, &UA_TYPES[UA_TYPES_DOUBLE]);
 
     UA_Server_addVariableTypeNode(server, UA_NODEID_NULL,
-                                  UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE),
+                                  UA_NODEID_NUMERIC(0, UA_NS0ID_BASEVARIABLETYPE),
                                   UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE),
                                   UA_QUALIFIEDNAME(1, "2DPoint Type"), UA_NODEID_NULL,
                                   vtAttr, NULL, &pointTypeId);
@@ -55,14 +56,14 @@ static UA_NodeId pointVariableId;
 static void
 addVariable(UA_Server *server) {
     /* Prepare the node attributes */
-    UA_VariableAttributes vAttr = UA_VariableAttributes_default;
+    UA_VariableAttributes vAttr;
+    UA_VariableAttributes_init(&vAttr);
     vAttr.dataType = UA_TYPES[UA_TYPES_DOUBLE].typeId;
     vAttr.valueRank = 1; /* array with one dimension */
     UA_UInt32 arrayDims[1] = {2};
     vAttr.arrayDimensions = arrayDims;
     vAttr.arrayDimensionsSize = 1;
-    vAttr.displayName = UA_LOCALIZEDTEXT("en-US", "2DPoint Variable");
-    vAttr.accessLevel = UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE;
+    vAttr.displayName = UA_LOCALIZEDTEXT("en_US", "2DPoint Variable");
     /* vAttr.value is left empty, the server instantiates with the default value */
 
     /* Add the node */
@@ -82,14 +83,15 @@ addVariable(UA_Server *server) {
 static void
 addVariableFail(UA_Server *server) {
     /* Prepare the node attributes */
-    UA_VariableAttributes vAttr = UA_VariableAttributes_default;
+    UA_VariableAttributes vAttr;
+    UA_VariableAttributes_init(&vAttr);
     vAttr.dataType = UA_TYPES[UA_TYPES_DOUBLE].typeId;
     vAttr.valueRank = -1; /* a scalar. this is not allowed per the variable type */
-    vAttr.displayName = UA_LOCALIZEDTEXT("en-US", "2DPoint Variable (fail)");
+    vAttr.displayName = UA_LOCALIZEDTEXT("en_US", "2DPoint Variable (fail)");
     UA_String s = UA_STRING("2dpoint?");
     UA_Variant_setScalar(&vAttr.value, &s, &UA_TYPES[UA_TYPES_STRING]);
 
-    /* Add the node will return UA_STATUSCODE_BADTYPEMISMATCH*/
+    /* Add the node */
     UA_Server_addVariableNode(server, UA_NODEID_NULL,
                               UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
                               UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
@@ -106,7 +108,7 @@ static void
 writeVariable(UA_Server *server) {
     UA_StatusCode retval = UA_Server_writeValueRank(server, pointVariableId, 0);
     UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
-                "Setting the Value Rank failed with Status Code %s",
+                "Setting the Value Rank failed with Status Code %s\n",
                 UA_StatusCode_name(retval));
 
 }
@@ -123,16 +125,19 @@ int main(void) {
     signal(SIGINT, stopHandler);
     signal(SIGTERM, stopHandler);
 
-    UA_ServerConfig *config = UA_ServerConfig_new_default();
+    UA_ServerConfig config = UA_ServerConfig_standard;
+    UA_ServerNetworkLayer nl =
+        UA_ServerNetworkLayerTCP(UA_ConnectionConfig_standard, 16664);
+    config.networkLayers = &nl;
+    config.networkLayersSize = 1;
     UA_Server *server = UA_Server_new(config);
 
     addVariableType2DPoint(server);
     addVariable(server);
     addVariableFail(server);
-    writeVariable(server);
 
-    UA_StatusCode retval = UA_Server_run(server, &running);
+    UA_Server_run(server, &running);
     UA_Server_delete(server);
-    UA_ServerConfig_delete(config);
-    return (int)retval;
+    nl.deleteMembers(&nl);
+    return 0;
 }

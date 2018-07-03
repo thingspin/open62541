@@ -1,13 +1,6 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. 
- *
- *    Copyright 2014-2017 (c) Fraunhofer IOSB (Author: Julius Pfrommer)
- *    Copyright 2014, 2017 (c) Florian Palm
- *    Copyright 2015 (c) Sten Grüner
- *    Copyright 2015 (c) Oleksiy Vasylyev
- *    Copyright 2017 (c) Stefan Profanter, fortiss GmbH
- */
+*  License, v. 2.0. If a copy of the MPL was not distributed with this 
+*  file, You can obtain one at http://mozilla.org/MPL/2.0/.*/
 
 #include "ua_session_manager.h"
 #include "ua_server_internal.h"
@@ -39,9 +32,6 @@ removeSessionCallback(UA_Server *server, void *entry) {
 
 static UA_StatusCode
 removeSession(UA_SessionManager *sm, session_list_entry *sentry) {
-    /* Detach the Session from the SecureChannel */
-    UA_Session_detachFromSecureChannel(&sentry->session);
-
     /* Deactivate the session */
     sentry->session.activated = false;
 
@@ -55,10 +45,9 @@ removeSession(UA_SessionManager *sm, session_list_entry *sentry) {
         return retval; /* Try again next time */
     }
 
-    /* Detach the session from the session manager and make the capacity
-     * available */
+    /* Detach the session and make the capacity available */
     LIST_REMOVE(sentry, pointers);
-    UA_atomic_subUInt32(&sm->currentSessionCount, 1);
+    UA_atomic_add(&sm->currentSessionCount, (UA_UInt32)-1);
     return UA_STATUSCODE_GOOD;
 }
 
@@ -72,20 +61,16 @@ UA_SessionManager_cleanupTimedOut(UA_SessionManager *sm,
             continue;
         UA_LOG_INFO_SESSION(sm->server->config.logger, &sentry->session,
                             "Session has timed out");
-        sm->server->config.accessControl.closeSession(sm->server,
-                                                      &sm->server->config.accessControl,
-                                                      &sentry->session.sessionId,
-                                                      sentry->session.sessionHandle);
         removeSession(sm, sentry);
     }
 }
 
 UA_Session *
-UA_SessionManager_getSessionByToken(UA_SessionManager *sm, const UA_NodeId *token) {
+UA_SessionManager_getSession(UA_SessionManager *sm, const UA_NodeId *token) {
     session_list_entry *current = NULL;
     LIST_FOREACH(current, &sm->sessions, pointers) {
         /* Token does not match */
-        if(!UA_NodeId_equal(&current->session.header.authenticationToken, token))
+        if(!UA_NodeId_equal(&current->session.authenticationToken, token))
             continue;
 
         /* Session has timed out */
@@ -106,32 +91,6 @@ UA_SessionManager_getSessionByToken(UA_SessionManager *sm, const UA_NodeId *toke
     return NULL;
 }
 
-UA_Session *
-UA_SessionManager_getSessionById(UA_SessionManager *sm, const UA_NodeId *sessionId) {
-    session_list_entry *current = NULL;
-    LIST_FOREACH(current, &sm->sessions, pointers) {
-        /* Token does not match */
-        if(!UA_NodeId_equal(&current->session.sessionId, sessionId))
-            continue;
-
-        /* Session has timed out */
-        if(UA_DateTime_nowMonotonic() > current->session.validTill) {
-            UA_LOG_INFO_SESSION(sm->server->config.logger, &current->session,
-                                "Client tries to use a session that has timed out");
-            return NULL;
-        }
-
-        /* Ok, return */
-        return &current->session;
-    }
-
-    /* Session not found */
-    UA_LOG_INFO(sm->server->config.logger, UA_LOGCATEGORY_SESSION,
-                "Try to use Session with identifier " UA_PRINTF_GUID_FORMAT " but is not found",
-                UA_PRINTF_GUID_DATA(sessionId->identifier.guid));
-    return NULL;
-}
-
 /* Creates and adds a session. But it is not yet attached to a secure channel. */
 UA_StatusCode
 UA_SessionManager_createSession(UA_SessionManager *sm, UA_SecureChannel *channel,
@@ -139,14 +98,14 @@ UA_SessionManager_createSession(UA_SessionManager *sm, UA_SecureChannel *channel
     if(sm->currentSessionCount >= sm->server->config.maxSessions)
         return UA_STATUSCODE_BADTOOMANYSESSIONS;
 
-    session_list_entry *newentry = (session_list_entry *)UA_malloc(sizeof(session_list_entry));
+    session_list_entry *newentry = UA_malloc(sizeof(session_list_entry));
     if(!newentry)
         return UA_STATUSCODE_BADOUTOFMEMORY;
 
-    UA_atomic_addUInt32(&sm->currentSessionCount, 1);
+    UA_atomic_add(&sm->currentSessionCount, 1);
     UA_Session_init(&newentry->session);
     newentry->session.sessionId = UA_NODEID_GUID(1, UA_Guid_random());
-    newentry->session.header.authenticationToken = UA_NODEID_GUID(1, UA_Guid_random());
+    newentry->session.authenticationToken = UA_NODEID_GUID(1, UA_Guid_random());
 
     if(request->requestedSessionTimeout <= sm->server->config.maxSessionTimeout &&
        request->requestedSessionTimeout > 0)
@@ -164,7 +123,7 @@ UA_StatusCode
 UA_SessionManager_removeSession(UA_SessionManager *sm, const UA_NodeId *token) {
     session_list_entry *current;
     LIST_FOREACH(current, &sm->sessions, pointers) {
-        if(UA_NodeId_equal(&current->session.header.authenticationToken, token))
+        if(UA_NodeId_equal(&current->session.authenticationToken, token))
             break;
     }
     if(!current)

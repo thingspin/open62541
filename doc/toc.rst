@@ -8,10 +8,10 @@ open62541 Documentation
    tutorials
    protocol
    types
+   information_modelling
    services
-   nodestore
    server
    client
    constants
-   nodeset_compiler
+   namespace_compiler
    internal

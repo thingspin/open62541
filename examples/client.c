@@ -1,16 +1,25 @@
 /* This work is licensed under a Creative Commons CCZero 1.0 Universal License.
  * See http://creativecommons.org/publicdomain/zero/1.0/ for more information. */
 
-#include <stdio.h>
-#include "open62541.h"
+#ifdef UA_NO_AMALGAMATION
+# include "ua_types.h"
+# include "ua_client.h"
+# include "ua_client_highlevel.h"
+# include "ua_nodeids.h"
+# include "ua_network_tcp.h"
+# include "ua_config_standard.h"
+#else
+# include "open62541.h"
+# include <string.h>
+# include <stdlib.h>
+#endif
 
-#ifdef UA_ENABLE_SUBSCRIPTIONS
+#include <stdio.h>
+
 static void
-handler_TheAnswerChanged(UA_Client *client, UA_UInt32 subId, void *subContext,
-                         UA_UInt32 monId, void *monContext, UA_DataValue *value) {
+handler_TheAnswerChanged(UA_UInt32 monId, UA_DataValue *value, void *context) {
     printf("The Answer has changed!\n");
 }
-#endif
 
 static UA_StatusCode
 nodeIter(UA_NodeId childId, UA_Boolean isInverse, UA_NodeId referenceTypeId, void *handle) {
@@ -25,12 +34,12 @@ nodeIter(UA_NodeId childId, UA_Boolean isInverse, UA_NodeId referenceTypeId, voi
 }
 
 int main(int argc, char *argv[]) {
-    UA_Client *client = UA_Client_new(UA_ClientConfig_default);
+    UA_Client *client = UA_Client_new(UA_ClientConfig_standard);
 
     /* Listing endpoints */
     UA_EndpointDescription* endpointArray = NULL;
     size_t endpointArraySize = 0;
-    UA_StatusCode retval = UA_Client_getEndpoints(client, "opc.tcp://localhost:4840",
+    UA_StatusCode retval = UA_Client_getEndpoints(client, "opc.tcp://localhost:16664",
                                                   &endpointArraySize, &endpointArray);
     if(retval != UA_STATUSCODE_GOOD) {
         UA_Array_delete(endpointArray, endpointArraySize, &UA_TYPES[UA_TYPES_ENDPOINTDESCRIPTION]);
@@ -38,7 +47,7 @@ int main(int argc, char *argv[]) {
         return (int)retval;
     }
     printf("%i endpoints found\n", (int)endpointArraySize);
-    for(size_t i=0;i<endpointArraySize;i++) {
+    for(size_t i=0;i<endpointArraySize;i++){
         printf("URL of endpoint %i is %.*s\n", (int)i,
                (int)endpointArray[i].endpointUrl.length,
                endpointArray[i].endpointUrl.data);
@@ -46,8 +55,8 @@ int main(int argc, char *argv[]) {
     UA_Array_delete(endpointArray,endpointArraySize, &UA_TYPES[UA_TYPES_ENDPOINTDESCRIPTION]);
 
     /* Connect to a server */
-    /* anonymous connect would be: retval = UA_Client_connect(client, "opc.tcp://localhost:4840"); */
-    retval = UA_Client_connect_username(client, "opc.tcp://localhost:4840", "user1", "password");
+    /* anonymous connect would be: retval = UA_Client_connect(client, "opc.tcp://localhost:16664"); */
+    retval = UA_Client_connect_username(client, "opc.tcp://localhost:16664", "user1", "password");
     if(retval != UA_STATUSCODE_GOOD) {
         UA_Client_delete(client);
         return (int)retval;
@@ -64,8 +73,8 @@ int main(int argc, char *argv[]) {
     bReq.nodesToBrowse[0].resultMask = UA_BROWSERESULTMASK_ALL; /* return everything */
     UA_BrowseResponse bResp = UA_Client_Service_browse(client, bReq);
     printf("%-9s %-16s %-16s %-16s\n", "NAMESPACE", "NODEID", "BROWSE NAME", "DISPLAY NAME");
-    for(size_t i = 0; i < bResp.resultsSize; ++i) {
-        for(size_t j = 0; j < bResp.results[i].referencesSize; ++j) {
+    for (size_t i = 0; i < bResp.resultsSize; ++i) {
+        for (size_t j = 0; j < bResp.results[i].referencesSize; ++j) {
             UA_ReferenceDescription *ref = &(bResp.results[i].references[j]);
             if(ref->nodeId.nodeId.identifierType == UA_NODEIDTYPE_NUMERIC) {
                 printf("%-9d %-16d %-16.*s %-16.*s\n", ref->nodeId.nodeId.namespaceIndex,
@@ -94,27 +103,19 @@ int main(int argc, char *argv[]) {
 
 #ifdef UA_ENABLE_SUBSCRIPTIONS
     /* Create a subscription */
-    UA_CreateSubscriptionRequest request = UA_CreateSubscriptionRequest_default();
-    UA_CreateSubscriptionResponse response = UA_Client_Subscriptions_create(client, request,
-                                                                            NULL, NULL, NULL);
-
-    UA_UInt32 subId = response.subscriptionId;
-    if(response.responseHeader.serviceResult == UA_STATUSCODE_GOOD)
+    UA_UInt32 subId = 0;
+    UA_Client_Subscriptions_new(client, UA_SubscriptionSettings_standard, &subId);
+    if(subId)
         printf("Create subscription succeeded, id %u\n", subId);
-
-    UA_MonitoredItemCreateRequest monRequest =
-        UA_MonitoredItemCreateRequest_default(UA_NODEID_STRING(1, "the.answer"));
-
-    UA_MonitoredItemCreateResult monResponse =
-    UA_Client_MonitoredItems_createDataChange(client, response.subscriptionId,
-                                              UA_TIMESTAMPSTORETURN_BOTH,
-                                              monRequest, NULL, handler_TheAnswerChanged, NULL);
-    if(monResponse.statusCode == UA_STATUSCODE_GOOD)
-        printf("Monitoring 'the.answer', id %u\n", monResponse.monitoredItemId);
-
-
+    /* Add a MonitoredItem */
+    UA_NodeId monitorThis = UA_NODEID_STRING(1, "the.answer");
+    UA_UInt32 monId = 0;
+    UA_Client_Subscriptions_addMonitoredItem(client, subId, monitorThis, UA_ATTRIBUTEID_VALUE,
+                                             &handler_TheAnswerChanged, NULL, &monId);
+    if (monId)
+        printf("Monitoring 'the.answer', id %u\n", subId);
     /* The first publish request should return the initial value of the variable */
-    UA_Client_run_iterate(client, 1000);
+    UA_Client_Subscriptions_manuallySendPublishRequest(client);
 #endif
 
     /* Read attribute */
@@ -157,9 +158,9 @@ int main(int argc, char *argv[]) {
 
 #ifdef UA_ENABLE_SUBSCRIPTIONS
     /* Take another look at the.answer */
-    UA_Client_run_iterate(client, 100);
+    UA_Client_Subscriptions_manuallySendPublishRequest(client);
     /* Delete the subscription */
-    if(UA_Client_Subscriptions_deleteSingle(client, subId) == UA_STATUSCODE_GOOD)
+    if(!UA_Client_Subscriptions_remove(client, subId))
         printf("Subscription removed\n");
 #endif
 
@@ -174,11 +175,11 @@ int main(int argc, char *argv[]) {
     retval = UA_Client_call(client, UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
                             UA_NODEID_NUMERIC(1, 62541), 1, &input, &outputSize, &output);
     if(retval == UA_STATUSCODE_GOOD) {
-        printf("Method call was successful, and %lu returned values available.\n",
+        printf("Method call was successfull, and %lu returned values available.\n",
                (unsigned long)outputSize);
         UA_Array_delete(output, outputSize, &UA_TYPES[UA_TYPES_VARIANT]);
     } else {
-        printf("Method call was unsuccessful, and %x returned values available.\n", retval);
+        printf("Method call was unsuccessfull, and %x returned values available.\n", retval);
     }
     UA_Variant_deleteMembers(&input);
 #endif
@@ -187,10 +188,11 @@ int main(int argc, char *argv[]) {
     /* Add new nodes*/
     /* New ReferenceType */
     UA_NodeId ref_id;
-    UA_ReferenceTypeAttributes ref_attr = UA_ReferenceTypeAttributes_default;
-    ref_attr.displayName = UA_LOCALIZEDTEXT("en-US", "NewReference");
-    ref_attr.description = UA_LOCALIZEDTEXT("en-US", "References something that might or might not exist");
-    ref_attr.inverseName = UA_LOCALIZEDTEXT("en-US", "IsNewlyReferencedBy");
+    UA_ReferenceTypeAttributes ref_attr;
+    UA_ReferenceTypeAttributes_init(&ref_attr);
+    ref_attr.displayName = UA_LOCALIZEDTEXT("en_US", "NewReference");
+    ref_attr.description = UA_LOCALIZEDTEXT("en_US", "References something that might or might not exist");
+    ref_attr.inverseName = UA_LOCALIZEDTEXT("en_US", "IsNewlyReferencedBy");
     retval = UA_Client_addReferenceTypeNode(client,
                                             UA_NODEID_NUMERIC(1, 12133),
                                             UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
@@ -202,9 +204,10 @@ int main(int argc, char *argv[]) {
 
     /* New ObjectType */
     UA_NodeId objt_id;
-    UA_ObjectTypeAttributes objt_attr = UA_ObjectTypeAttributes_default;
-    objt_attr.displayName = UA_LOCALIZEDTEXT("en-US", "TheNewObjectType");
-    objt_attr.description = UA_LOCALIZEDTEXT("en-US", "Put innovative description here");
+    UA_ObjectTypeAttributes objt_attr;
+    UA_ObjectTypeAttributes_init(&objt_attr);
+    objt_attr.displayName = UA_LOCALIZEDTEXT("en_US", "TheNewObjectType");
+    objt_attr.description = UA_LOCALIZEDTEXT("en_US", "Put innovative description here");
     retval = UA_Client_addObjectTypeNode(client,
                                          UA_NODEID_NUMERIC(1, 12134),
                                          UA_NODEID_NUMERIC(0, UA_NS0ID_BASEOBJECTTYPE),
@@ -216,9 +219,10 @@ int main(int argc, char *argv[]) {
 
     /* New Object */
     UA_NodeId obj_id;
-    UA_ObjectAttributes obj_attr = UA_ObjectAttributes_default;
-    obj_attr.displayName = UA_LOCALIZEDTEXT("en-US", "TheNewGreatNode");
-    obj_attr.description = UA_LOCALIZEDTEXT("de-DE", "Hier koennte Ihre Webung stehen!");
+    UA_ObjectAttributes obj_attr;
+    UA_ObjectAttributes_init(&obj_attr);
+    obj_attr.displayName = UA_LOCALIZEDTEXT("en_US", "TheNewGreatNode");
+    obj_attr.description = UA_LOCALIZEDTEXT("de_DE", "Hier koennte Ihre Webung stehen!");
     retval = UA_Client_addObjectNode(client,
                                      UA_NODEID_NUMERIC(1, 0),
                                      UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
@@ -231,10 +235,11 @@ int main(int argc, char *argv[]) {
 
     /* New Integer Variable */
     UA_NodeId var_id;
-    UA_VariableAttributes var_attr = UA_VariableAttributes_default;
-    var_attr.displayName = UA_LOCALIZEDTEXT("en-US", "TheNewVariableNode");
+    UA_VariableAttributes var_attr;
+    UA_VariableAttributes_init(&var_attr);
+    var_attr.displayName = UA_LOCALIZEDTEXT("en_US", "TheNewVariableNode");
     var_attr.description =
-        UA_LOCALIZEDTEXT("en-US", "This integer is just amazing - it has digits and everything.");
+        UA_LOCALIZEDTEXT("en_US", "This integer is just amazing - it has digits and everything.");
     UA_Int32 int_value = 1234;
     /* This does not copy the value */
     UA_Variant_setScalar(&var_attr.value, &int_value, &UA_TYPES[UA_TYPES_INT32]);

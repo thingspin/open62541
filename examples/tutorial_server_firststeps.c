@@ -33,13 +33,18 @@ int main(void) {
     signal(SIGINT, stopHandler);
     signal(SIGTERM, stopHandler);
 
-    UA_ServerConfig *config = UA_ServerConfig_new_default();
+    UA_ServerConfig config = UA_ServerConfig_standard;
+    UA_ServerNetworkLayer nl =
+        UA_ServerNetworkLayerTCP(UA_ConnectionConfig_standard, 4840);
+    config.networkLayers = &nl;
+    config.networkLayersSize = 1;
     UA_Server *server = UA_Server_new(config);
 
-    UA_StatusCode retval = UA_Server_run(server, &running);
+    UA_Server_run(server, &running);
+
     UA_Server_delete(server);
-    UA_ServerConfig_delete(config);
-    return (int)retval;
+    nl.deleteMembers(&nl);
+    return 0;
 }
 
 /**
@@ -49,12 +54,6 @@ int main(void) {
  * .. code-block:: bash
  *
  *    $ gcc -std=c99 open62541.c myServer.c -o myServer
- *
- * In a MinGW environment, the Winsock library must be added.
- *
- * .. code-block:: bash
- *
- *    $ gcc -std=c99 open62541.c myServer.c -lws2_32 -o myServer.exe
  *
  * Now start the server (stop with ctrl-c):
  *
@@ -71,7 +70,7 @@ int main(void) {
  * ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
  *
  * *open62541* provides a flexible framework for building OPC UA servers and
- * clients. The goals is to have a core library that accommodates for all use
+ * clients. The goals is to have a core library that accomodates for all use
  * cases and runs on all platforms. Users can then adjust the library to fit
  * their use case via configuration and by developing (platform-specific)
  * plugins. The core library is based on C99 only and does not even require

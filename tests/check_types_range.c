@@ -1,16 +1,19 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+*  License, v. 2.0. If a copy of the MPL was not distributed with this 
+*  file, You can obtain one at http://mozilla.org/MPL/2.0/.*/
 
 #include "ua_types.h"
 #include "ua_types_generated_handling.h"
-#include "ua_server_internal.h"
+#include "ua_util.h"
 #include "check.h"
+
+/* copied definition */
+UA_StatusCode parse_numericrange(const UA_String *str, UA_NumericRange *range);
 
 START_TEST(parseRange) {
     UA_NumericRange range;
     UA_String str = UA_STRING("1:2,0:3,5");
-    UA_StatusCode retval = UA_NumericRange_parseFromString(&range, &str);
+    UA_StatusCode retval = parse_numericrange(&str, &range);
     ck_assert_int_eq(retval, UA_STATUSCODE_GOOD);
     ck_assert_int_eq(range.dimensionsSize,3);
     ck_assert_int_eq(range.dimensions[0].min,1);
@@ -25,7 +28,7 @@ START_TEST(parseRange) {
 START_TEST(parseRangeMinEqualMax) {
     UA_NumericRange range;
     UA_String str = UA_STRING("1:2,1");
-    UA_StatusCode retval = UA_NumericRange_parseFromString(&range, &str);
+    UA_StatusCode retval = parse_numericrange(&str, &range);
     ck_assert_int_eq(retval, UA_STATUSCODE_GOOD);
     ck_assert_int_eq(range.dimensionsSize,2);
     ck_assert_int_eq(range.dimensions[0].min,1);
@@ -44,7 +47,7 @@ START_TEST(copySimpleArrayRange) {
 
     UA_NumericRange r;
     UA_String sr = UA_STRING("1:3");
-    UA_StatusCode retval = UA_NumericRange_parseFromString(&r, &sr);
+    UA_StatusCode retval = parse_numericrange(&sr, &r);
     ck_assert_int_eq(retval, UA_STATUSCODE_GOOD);
 
     retval = UA_Variant_copyRange(&v, &v2, r);
@@ -68,7 +71,7 @@ START_TEST(copyIntoStringArrayRange) {
 
     UA_NumericRange r;
     UA_String sr = UA_STRING("0:1,1:2");
-    UA_StatusCode retval = UA_NumericRange_parseFromString(&r, &sr);
+    UA_StatusCode retval = parse_numericrange(&sr, &r);
     ck_assert_int_eq(retval, UA_STATUSCODE_GOOD);
 
     retval = UA_Variant_copyRange(&v, &v2, r);
@@ -77,7 +80,7 @@ START_TEST(copyIntoStringArrayRange) {
 
     UA_String s1 = UA_STRING("bc");
     UA_String s2 = UA_STRING("xy");
-    UA_String *arr2 = (UA_String*)v2.data;
+    UA_String *arr2 = v2.data;
     ck_assert(UA_String_equal(&arr2[0], &s1));
     ck_assert(UA_String_equal(&arr2[1], &s2));
 
@@ -96,7 +99,6 @@ int main(void) {
     suite_add_tcase(s, tc);
 
     SRunner *sr = srunner_create(s);
-    srunner_set_fork_status(sr, CK_NOFORK);
     srunner_run_all (sr, CK_NORMAL);
     int number_failed = srunner_ntests_failed(sr);
     srunner_free(sr);

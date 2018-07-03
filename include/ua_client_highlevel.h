@@ -1,14 +1,6 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. 
- *
- *    Copyright 2015-2018 (c) Fraunhofer IOSB (Author: Julius Pfrommer)
- *    Copyright 2015 (c) Oleksiy Vasylyev
- *    Copyright 2017 (c) Florian Palm
- *    Copyright 2016 (c) Chris Iatrou
- *    Copyright 2017 (c) Stefan Profanter, fortiss GmbH
- *    Copyright 2017 (c) Frank Meerkötter
- */
+*  License, v. 2.0. If a copy of the MPL was not distributed with this 
+*  file, You can obtain one at http://mozilla.org/MPL/2.0/.*/
 
 #ifndef UA_CLIENT_HIGHLEVEL_H_
 #define UA_CLIENT_HIGHLEVEL_H_
@@ -160,8 +152,8 @@ UA_Client_readValueRankAttribute(UA_Client *client, const UA_NodeId nodeId,
 
 UA_StatusCode UA_EXPORT
 UA_Client_readArrayDimensionsAttribute(UA_Client *client, const UA_NodeId nodeId,
-                                       size_t *outArrayDimensionsSize,
-                                       UA_UInt32 **outArrayDimensions);
+                                       UA_UInt32 **outArrayDimensions,
+                                       size_t *outArrayDimensionsSize);
 
 static UA_INLINE UA_StatusCode
 UA_Client_readAccessLevelAttribute(UA_Client *client, const UA_NodeId nodeId,
@@ -341,8 +333,8 @@ UA_Client_writeValueRankAttribute(UA_Client *client, const UA_NodeId nodeId,
 
 UA_StatusCode UA_EXPORT
 UA_Client_writeArrayDimensionsAttribute(UA_Client *client, const UA_NodeId nodeId,
-                                        size_t newArrayDimensionsSize,
-                                        const UA_UInt32 *newArrayDimensions);
+                                        const UA_UInt32 *newArrayDimensions,
+                                        size_t newArrayDimensionsSize);
 
 static UA_INLINE UA_StatusCode
 UA_Client_writeAccessLevelAttribute(UA_Client *client, const UA_NodeId nodeId,
@@ -395,12 +387,10 @@ UA_Client_writeUserExecutableAttribute(UA_Client *client, const UA_NodeId nodeId
 /**
  * Method Calling
  * ^^^^^^^^^^^^^^ */
-#ifdef UA_ENABLE_METHODCALLS
 UA_StatusCode UA_EXPORT
 UA_Client_call(UA_Client *client, const UA_NodeId objectId,
                const UA_NodeId methodId, size_t inputSize, const UA_Variant *input,
                size_t *outputSize, UA_Variant **output);
-#endif
 
 /**
  * Node Management
@@ -422,23 +412,6 @@ UA_Client_deleteReference(UA_Client *client, const UA_NodeId sourceNodeId,
 UA_StatusCode UA_EXPORT
 UA_Client_deleteNode(UA_Client *client, const UA_NodeId nodeId,
                      UA_Boolean deleteTargetReferences);
-
-/* Protect against redundant definitions for server/client */
-#ifndef UA_DEFAULT_ATTRIBUTES_DEFINED
-#define UA_DEFAULT_ATTRIBUTES_DEFINED
-/* The default for variables is "BaseDataType" for the datatype, -2 for the
- * valuerank and a read-accesslevel. */
-UA_EXPORT extern const UA_VariableAttributes UA_VariableAttributes_default;
-UA_EXPORT extern const UA_VariableTypeAttributes UA_VariableTypeAttributes_default;
-/* Methods are executable by default */
-UA_EXPORT extern const UA_MethodAttributes UA_MethodAttributes_default;
-/* The remaining attribute definitions are currently all zeroed out */
-UA_EXPORT extern const UA_ObjectAttributes UA_ObjectAttributes_default;
-UA_EXPORT extern const UA_ObjectTypeAttributes UA_ObjectTypeAttributes_default;
-UA_EXPORT extern const UA_ReferenceTypeAttributes UA_ReferenceTypeAttributes_default;
-UA_EXPORT extern const UA_DataTypeAttributes UA_DataTypeAttributes_default;
-UA_EXPORT extern const UA_ViewAttributes UA_ViewAttributes_default;
-#endif
 
 /* Don't call this function, use the typed versions */
 UA_StatusCode UA_EXPORT
@@ -565,6 +538,58 @@ UA_Client_addMethodNode(UA_Client *client, const UA_NodeId requestedNewNodeId,
 }
 
 /**
+ * .. _client-subscriptions:
+ *
+ * Subscriptions Handling
+ * ^^^^^^^^^^^^^^^^^^^^^^
+ * At this time, the client does not yet contain its own thread or event-driven
+ * main-loop. So the client will not perform any actions automatically in the
+ * background. This is especially relevant for subscriptions. The user will have
+ * to periodically call `UA_Client_Subscriptions_manuallySendPublishRequest`.
+ * See also :ref:`here <client-subscriptions>`. */
+#ifdef UA_ENABLE_SUBSCRIPTIONS
+
+typedef struct {
+    UA_Double requestedPublishingInterval;
+    UA_UInt32 requestedLifetimeCount;
+    UA_UInt32 requestedMaxKeepAliveCount;
+    UA_UInt32 maxNotificationsPerPublish;
+    UA_Boolean publishingEnabled;
+    UA_Byte priority;
+} UA_SubscriptionSettings;
+
+extern const UA_EXPORT UA_SubscriptionSettings UA_SubscriptionSettings_standard;
+
+UA_StatusCode UA_EXPORT
+UA_Client_Subscriptions_new(UA_Client *client, UA_SubscriptionSettings settings,
+                            UA_UInt32 *newSubscriptionId);
+
+UA_StatusCode UA_EXPORT
+UA_Client_Subscriptions_remove(UA_Client *client, UA_UInt32 subscriptionId);
+
+UA_StatusCode UA_EXPORT
+UA_Client_Subscriptions_manuallySendPublishRequest(UA_Client *client);
+
+typedef void (*UA_MonitoredItemHandlingFunction)(UA_UInt32 monId,
+                                                 UA_DataValue *value,
+                                                 void *context);
+
+UA_StatusCode UA_EXPORT
+UA_Client_Subscriptions_addMonitoredItem(UA_Client *client,
+                                         UA_UInt32 subscriptionId,
+                                         UA_NodeId nodeId, UA_UInt32 attributeID,
+                                         UA_MonitoredItemHandlingFunction hf,
+                                         void *hfContext,
+                                         UA_UInt32 *newMonitoredItemId);
+
+UA_StatusCode UA_EXPORT
+UA_Client_Subscriptions_removeMonitoredItem(UA_Client *client,
+                                            UA_UInt32 subscriptionId,
+                                            UA_UInt32 monitoredItemId);
+
+#endif
+
+/**
  * Misc Highlevel Functionality
  * ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
 /* Get the namespace-index of a namespace-URI
@@ -582,8 +607,10 @@ UA_Client_NamespaceGetIndex(UA_Client *client, UA_String *namespaceUri,
 #define HAVE_NODEITER_CALLBACK
 /* Iterate over all nodes referenced by parentNodeId by calling the callback
    function for each child node */
-typedef UA_StatusCode (*UA_NodeIteratorCallback)(UA_NodeId childId, UA_Boolean isInverse,
-                                                 UA_NodeId referenceTypeId, void *handle);
+typedef UA_StatusCode (*UA_NodeIteratorCallback)(UA_NodeId childId,
+                                                 UA_Boolean isInverse,
+                                                 UA_NodeId referenceTypeId,
+                                                 void *handle);
 #endif
 
 UA_StatusCode UA_EXPORT

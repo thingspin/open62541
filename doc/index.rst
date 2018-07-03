@@ -1,21 +1,16 @@
 Introduction
 ============
 
-open62541 (http://open62541.org) is an open source and free implementation of
-OPC UA (OPC Unified Architecture) written in the common subset of the C99 and
-C++98 languages. The library is usable with all major compilers and provides the
-necessary tools to implement dedicated OPC UA clients and servers, or to
-integrate OPC UA-based communication into existing applications. open62541
-library is platform independent. All platform-specific functionality is
-implemented via exchangeable plugins. Plugin implementations are provided for
-the major operating systems.
-
-open62541 is licensed under the Mozilla Public License v2.0. So the *open62541
-library can be used in projects that are not open source*. Only changes to the
-open62541 library itself need to published under the same license. The plugins,
-as well as the server and client examples are in the public domain (CC0
-license). They can be reused under any license and changes do not have to be
-published.
+open62541 (http://open62541.org) is an open source implementation of OPC UA
+(short for OPC Unified Architecture). open62541 is a C-based library (linking
+with C++ projects is possible) with all necessary tools to implement dedicated
+OPC UA clients and servers, or to integrate OPC UA-based communication into
+existing applications. open62541 is licensed under Mozilla Public License v2.0.
+So the *open62541 library can be used in projects that are
+not open source*. However, changes to the open62541 library itself need to
+published under the same license. The plugins, as well as the provided example
+servers and clients are in the public domain (CC0 license). They can be reused
+under any license and changes do not have to be published.
 
 OPC Unified Architecture
 ------------------------
@@ -36,7 +31,7 @@ At its core, OPC UA defines
   response message in the protocol type system.
 
 The standard itself can be purchased from IEC or downloaded for free on the
-website of the OPC Foundation at https://opcfoundation.org/ (you need to
+website of the OPC Foundation at https://opcfoundation.org/ (you only need to
 register with a valid email).
 
 The OPC Foundation drives the continuous improvement of the standard and the
@@ -55,20 +50,23 @@ server SDK. It currently supports the Micro Embedded Device Server Profile plus
 some additional features. Server binaries can be well under 100kb in size,
 depending on the contained information model.
 
+open62541 adheres to the OPC UA specification as closely as possible and the
+released features pass the official Conformance Testing Tools (CTT). However,
+the library comes without any warranty. If you intend to use OPC UA in a
+mission-critical product, please consider talking to a commercial vendor of OPC
+UA SDKs and services.
+
 - Communication Stack
 
   - OPC UA binary protocol
   - Chunking (splitting of large messages)
   - Exchangeable network layer (plugin) for using custom networking APIs (e.g. on embedded targets)
-  - Encrypted communication
-  - Asynchronous service requests in the client
 
 - Information model
 
   - Support for all OPC UA node types (including method nodes)
   - Support for adding and removing nodes and references also at runtime.
   - Support for inheritance and instantiation of object- and variable-types (custom constructor/destructor, instantiation of child nodes)
-  - Access control for individual nodes
 
 - Subscriptions
 
@@ -80,11 +78,12 @@ depending on the contained information model.
   - Support for generating data types from standard XML definitions
   - Support for generating server-side information models (nodesets) from standard XML definitions
 
-Features on the roadmap for the 0.3 release series but missing in the initial v0.3 release are:
+Features still missing in the 0.2 release are:
 
-- Encrypted communication in the client
+- Encryption
+- Access control for individual nodes
 - Events (notifications emitted by objects, data change notifications are implemented)
-- Event-loop (background tasks) in the client
+- Event-loop (background tasks) and asynchronous service requests in the client
 
 Getting Help
 ------------
@@ -99,9 +98,9 @@ Contributing
 ------------
 
 As an open source project, we invite new contributors to help improve open62541.
-Issue reports, bugfixes and new features are very welcome. The following are
-good starting points for new contributors:
+Issue reports, bugfixes and new features are very welcome. Note that there are
+ways to begin contributing without deep knowledge of the OPC UA standard:
 
 - `Report bugs <https://github.com/open62541/open62541/issues>`_
 - Improve the `documentation <http://open62541.org/doc/current>`_
-- Work on issues marked as `good first issue <https://github.com/open62541/open62541/labels/good%20first%20issue>`_
+- Work on issues marked as `easy hacks <https://github.com/open62541/open62541/labels/easy%20hack>`_

@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this 
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -22,7 +20,7 @@ remove_keyword = [" UA_EXPORT", " UA_FUNC_ATTR_WARN_UNUSED_RESULT",
                   " UA_FUNC_ATTR_MALLOC", " UA_RESTRICT "]
 
 def clean_comment(line):
-    m = re.search("^\s*(\* |/\*\* )(.*?)( \*/)?$", line)
+    m = re.search("^( \* |/\*\* )(.*?)( \*/)?$", line)
     if not m:
         return "\n"
     return m.group(2) + "\n"
@@ -33,7 +31,7 @@ def clean_line(line):
     return line
 
 def comment_start(line):
-    m = re.search("^\s*/\*\*[ \n]", line)
+    m = re.search("^/\*\*[ \n]", line)
     if not m:
         return False
     return True
